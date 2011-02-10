@@ -14,30 +14,36 @@
 # the Free Software Foundation.
 #
 
-class nagios {
-    case $nagios_httpd {
-        'absent': { }
-        'lighttpd': { include lighttpd }
-        'apache': { include apache }
-        default: { include apache }
+class nagios(
+  $webserver = 'apache',
+  $cfgdir = false,
+  $use_icinga = false
+) {
+  case $webserver {
+    'lighttpd': { include lighttpd }
+    'apache': { include apache }
+  }
+  case $operatingsystem {
+    'centos': {
+      $packagename = $use_icinga ? {
+        true => 'icinga',
+        default => 'nagios',
+      }
+      if ! $cfgdir {
+        $cfgdir = "/etc/$packagename"
+      }
+      include nagios::centos
     }
-    case $operatingsystem {
-        'centos': {
-             $nagios_cfgdir = '/etc/nagios'
-            include nagios::centos
-        }
-        'debian': {
-            $nagios_packagename = $nagios_use_icinga ? {
-                "true" => icinga,
-                default => nagios3
-            }
-
-            $nagios_cfgdir = "/etc/$nagios_packagename"
-
-            notify {"nagios_cfgdir: $nagios_cfgdir":}
-
-            include nagios::debian
-        }
-        default: { fail("No such operatingsystem: $operatingsystem yet defined") }
+    'debian': {
+      $packagename = $use_icinga ? {
+        true => 'icinga',
+        default => 'nagios3',
+      }
+      if ! $cfgdir {
+        $cfgdir = "/etc/$packagename"
+      }
+      include nagios::debian
     }
+    default: { fail("Operatingsystem '$operatingsystem' not supported") }
+  }
 }
